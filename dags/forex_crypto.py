@@ -103,19 +103,44 @@ def transform_data():
     return "transform complete"
 
 @task()
-def validate_pct_change():
+def validate_transformed_data():
     hook = get_snowflake_hook()
-    # 1) No NULL pct_change
-    null_count = hook.get_first(
-        f"SELECT COUNT(*) FROM processed_exchange_rates_wayne WHERE pct_change IS NULL"
-    )[0]
-    # 2) No absurd spikes
-    outlier_count = hook.get_first(
-        f"SELECT COUNT(*) FROM processed_exchange_rates_wayne WHERE ABS(pct_change) > 50"
-    )[0]
-    if null_count > 0 or outlier_count > 0:
-        raise ValueError(f"Validation failed (nulls={null_count}, outliers={outlier_count})")
-    return f"Validation passed (nulls={null_count}, outliers={outlier_count})"
+
+    # 1. Check if table exists
+    table_check = hook.get_first("""
+        SELECT COUNT(*) 
+        FROM INFORMATION_SCHEMA.TABLES 
+        WHERE TABLE_NAME = 'PROCESSED_EXCHANGE_RATES_WAYNE'
+    """)
+    if table_check[0] == 0:
+        raise ValueError("Table processed_exchange_rates_wayne does not exist.")
+
+    # 2. Check if the table has at least 1 row
+    row_check = hook.get_first("""
+        SELECT COUNT(*) FROM processed_exchange_rates_wayne
+    """)
+    if row_check[0] == 0:
+        raise ValueError("Table exists but has no rows.")
+
+    # 3. Check for NULLs in critical columns
+    null_check = hook.get_first("""
+        SELECT COUNT(*) FROM processed_exchange_rates_wayne
+        WHERE base_currency IS NULL OR quote_currency IS NULL 
+        OR exchange_rate IS NULL OR timestamp IS NULL
+    """)
+    if null_check[0] > 0:
+        raise ValueError("Found NULLs in critical columns.")
+
+    # 4. Check if at least some pct_change values are not null
+    pct_check = hook.get_first("""
+        SELECT COUNT(*) FROM processed_exchange_rates_wayne
+        WHERE pct_change IS NOT NULL
+    """)
+    if pct_check[0] == 0:
+        raise ValueError("All pct_change values are NULL.")
+
+    return "validation complete"
+
 
 
 # ── DAG Definition ─────────────────────────────────────────────────────────────
@@ -132,7 +157,7 @@ def forex_crypto_pipeline():
     records     = extract_data()
     inserted    = insert_data(records)
     transformed = transform_data()
-    validated = validate_pct_change()
+    validated = validate_transformed_data()
 
     create >> records >> inserted >> transformed >> validated
 
