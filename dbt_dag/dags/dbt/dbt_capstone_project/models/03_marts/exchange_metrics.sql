@@ -5,7 +5,6 @@
   )
 }}
 
-
 with ranked as (
     select
         base_currency,
@@ -17,7 +16,12 @@ with ranked as (
         ) as prev_rate,
         timestamp_utc as timestamp
     from {{ ref('clean_exchange_rates') }}
+    {% if is_incremental() %}
+    -- Only process new records since last run
+    where timestamp_utc > (select coalesce(max(timestamp), '1900-01-01') from {{ this }})
+    {% endif %}
 )
+
 select
     base_currency,
     quote_currency,

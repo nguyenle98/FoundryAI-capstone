@@ -26,6 +26,11 @@ models:
   capstone_project:  
     01_staging:
       materialized: view
+      schema: Bronze
+    02_intermediate:
+      materialized: incremental
+      schema: Silver
     03_marts:
-      materialized: table
+      schema: Gold
+      materialized: incremental
       
