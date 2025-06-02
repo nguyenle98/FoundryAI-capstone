@@ -1,0 +1,5 @@
+version: '3'
+services:
+  scheduler:
+    volumes:
+      - ../dbt_capstone_project:/usr/local/airflow/dbt_capstone_project

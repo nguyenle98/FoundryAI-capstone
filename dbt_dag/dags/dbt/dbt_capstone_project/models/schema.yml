@@ -1,0 +1,96 @@
+version: 2
+
+sources:
+  - name: sc_lab_m1w4
+    database: CAPSTONE
+    schema: SC_LAB_M1W4
+    tables:
+      - name: FOREX_CRYPTO_RATES_WAYNE
+        description: "Raw forex and crypto exchange rates from exchangerate.host API"
+        columns:
+          - name: base_currency
+            description: "Base currency code (e.g., USD)"
+          - name: quote_currency
+            description: "Quote currency code (e.g., EUR)"
+          - name: exchange_rate
+            description: "Exchange rate value"
+            tests:
+              - not_null
+              - positive_value
+
+models:
+  - name: exchange_rates
+    description: "Raw exchange rates staging, select raw data from source table forex_crypto_rates_wayne"
+    columns:
+      - name: base_currency
+        description: "Base currency for the exchange rate (e.g., USD)"
+        tests:
+          - not_null
+      - name: quote_currency
+        description: "Quote currency for the exchange rate (e.g., EUR)"
+        tests:
+          - not_null
+      - name: exchange_rate
+        description: "The exchange rate value"
+        tests:
+          - not_null
+          - positive_value
+      - name: timestamp
+        description: "UTC timestamp of the exchange rate"
+        tests:
+          - not_null
+
+  - name: clean_exchange_rates
+    description: "Cleaned and deduplicated exchange rates"
+    columns:
+      - name: base_currency
+        description: "Validated base currency code"
+        tests:
+          - not_null
+      - name: quote_currency
+        description: "Validated quote currency code"
+        tests:
+          - not_null
+      - name: exchange_rate
+        description: "Validated positive exchange rate value"
+        tests:
+          - not_null
+          - positive_value
+      - name: timestamp_utc
+        description: "Standardized UTC timestamp"
+        tests:
+          - not_null
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - base_currency
+            - quote_currency
+            - timestamp_utc
+  - name: exchange_metrics
+    description: "Processed rates with percentage changes and moving averages"
+    columns:
+      - name: base_currency
+        description: "Base currency for the exchange rate pair"
+        tests:
+          - not_null
+      - name: quote_currency
+        description: "Quote currency for the exchange rate pair"
+        tests:
+          - not_null
+      - name: exchange_rate
+        description: "Current exchange rate value"
+        tests:
+          - not_null
+          - positive_value
+      - name: prev_rate
+        description: "Previous exchange rate value for calculating percentage change"
+      - name: pct_change
+        description: "Percentage change from previous rate ((current - previous) / previous * 100)"
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: -100
+              max_value: 100
+      - name: timestamp
+        description: "UTC timestamp of the exchange rate"
+        tests:
+          - not_null
