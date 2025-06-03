@@ -6,6 +6,8 @@ from datetime import datetime, timezone, timedelta
 from airflow.decorators import dag, task
 from airflow.utils.dates import days_ago
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
+from airflow.operators.bash import BashOperator
+
 
 # ── Constants ──────────────────────────────────────────────────────────────────
 DAG_ID     = "real_time_forex_crypto_pipeline"
@@ -22,6 +24,7 @@ def extract_data():
     resp = requests.get(API_URL, timeout=10)
     resp.raise_for_status()
     payload = resp.json()
+    # print(f"API response: {payload}")  --> Debugging line, can be removed later
 
     # live endpoint uses "source" instead of "base"
     base = payload.get("base") or payload.get("source")
@@ -69,18 +72,14 @@ def insert_data(records: list[tuple]):
 @task()
 def transform_data():
     hook = get_snowflake_hook()
-
-    # 1) Build the currency dimension
+    
     hook.run(f"""
-        CREATE OR REPLACE TABLE currency_dim_wayne AS
-        SELECT DISTINCT
-            base_currency AS currency
-        FROM {TABLE_NAME};
+        CREATE OR REPLACE TABLE CAPSTONE.SC_LAB_M1W4.currency_dedup AS (
+            SELECT DISTINCT * FROM CAPSTONE.SC_LAB_M1W4.forex_crypto_rates_wayne
+        )
     """)
-
-    # 2) Build the processed fact table with a JOIN + windowed prev_rate
     hook.run(f"""
-        INSERT INTO processed_exchange_rates_wayne
+        INSERT INTO CAPSTONE.SC_LAB_M1W4.processed_exchange_rates_wayne
         WITH ranked AS (
             SELECT
                 r.base_currency,
@@ -91,12 +90,11 @@ def transform_data():
                     ORDER BY r.timestamp
                 ) AS prev_rate,
                 r.timestamp
-            FROM {TABLE_NAME} r
-            WHERE r.timestamp > (SELECT MAX(timestamp) FROM processed_exchange_rates_wayne)
+            FROM CAPSTONE.SC_LAB_M1W4.currency_dedup r
+            WHERE r.timestamp > (SELECT MAX(timestamp) FROM CAPSTONE.SC_LAB_M1W4.processed_exchange_rates_wayne)
         )
         SELECT
             ranked.base_currency,
-            d.currency         AS dim_currency,
             ranked.quote_currency,
             ranked.exchange_rate,
             ranked.prev_rate,
@@ -106,10 +104,14 @@ def transform_data():
             END AS pct_change,
             ranked.timestamp
         FROM ranked     
-        JOIN currency_dim_wayne d
-          ON ranked.base_currency = d.currency;
     """)
-
+    hook.run(f"""
+         CREATE OR REPLACE TABLE CAPSTONE.SC_LAB_M1W4.EXPENSES_WAYNE AS (
+         SELECT *, spending_amount * exchange_rate AS SPENDING_IN_USD FROM CAPSTONE.SC_LAB_M1W4.mock_spending
+            LEFT JOIN CAPSTONE.SC_LAB_M1W4.processed_exchange_rates_wayne ON   
+            mock_spending.currency_code = processed_exchange_rates_wayne.quote_currency AND
+            mock_spending.ts = processed_exchange_rates_wayne.timestamp);
+    """)
     return "transform complete"
 
 @task()
@@ -119,22 +121,23 @@ def validate_transformed_data():
     # 1. Check if table exists
     table_check = hook.get_first("""
         SELECT COUNT(*) 
-        FROM INFORMATION_SCHEMA.TABLES 
+        FROM CAPSTONE.INFORMATION_SCHEMA.TABLES 
         WHERE TABLE_NAME = 'PROCESSED_EXCHANGE_RATES_WAYNE'
+          AND TABLE_SCHEMA = 'SC_LAB_M1W4'
     """)
     if table_check[0] == 0:
         raise ValueError("Table processed_exchange_rates_wayne does not exist.")
 
     # 2. Check if the table has at least 1 row
     row_check = hook.get_first("""
-        SELECT COUNT(*) FROM processed_exchange_rates_wayne
+        SELECT COUNT(*) FROM CAPSTONE.SC_LAB_M1W4.PROCESSED_EXCHANGE_RATES_WAYNE
     """)
     if row_check[0] == 0:
         raise ValueError("Table exists but has no rows.")
 
     # 3. Check for NULLs in critical columns
     null_check = hook.get_first("""
-        SELECT COUNT(*) FROM processed_exchange_rates_wayne
+        SELECT COUNT(*) FROM CAPSTONE.SC_LAB_M1W4.PROCESSED_EXCHANGE_RATES_WAYNE
         WHERE base_currency IS NULL OR quote_currency IS NULL 
         OR exchange_rate IS NULL OR timestamp IS NULL
     """)
@@ -143,7 +146,7 @@ def validate_transformed_data():
 
     # 4. Check if at least some pct_change values are not null
     pct_check = hook.get_first("""
-        SELECT COUNT(*) FROM processed_exchange_rates_wayne
+        SELECT COUNT(*) FROM CAPSTONE.SC_LAB_M1W4.PROCESSED_EXCHANGE_RATES_WAYNE
         WHERE pct_change IS NOT NULL
     """)
     if pct_check[0] == 0:
@@ -157,21 +160,29 @@ def validate_transformed_data():
 @dag(
     dag_id=DAG_ID,
     start_date=days_ago(1),
-    schedule_interval=timedelta(hours=1),  # every 1 hour
+    schedule_interval=timedelta(hours=1),
     catchup=False,
-    tags=["forex", "crypto", "etl"],
+    tags=["forex", "crypto", "elt"],
 )
 def forex_crypto_pipeline():
-    # Define the DAG tasks
     records     = extract_data()
     inserted    = insert_data(records)
     transformed = transform_data()
-    validated = validate_transformed_data()
+    validated   = validate_transformed_data()
 
-    records >> inserted >> transformed >> validated
+    dbt_run = BashOperator(
+        task_id="dbt_run",
+        bash_command="cd /opt/airflow/dbt_capstone_project && dbt run --full-refresh",
+    )
 
-# Registers your DAG
+    # Set dependencies
+    records >> inserted >> transformed >> validated >> dbt_run
+
+    # Optionally return all tasks for Airflow to register them
+    return [records, inserted, transformed, validated, dbt_run]
+
 dag = forex_crypto_pipeline()
+
 
 
 
