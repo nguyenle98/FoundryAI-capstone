@@ -1,5 +1,5 @@
-![Foundry Data & AI Academy Logo](https://raw.githubusercontent.com/foundry-ai-academy/fa-cdn/1.0.0/images/FoundryAI_academy_logo_on_yellow_space.png)
 
+<<<<<<< transform-task
 # Module 01 - Week 04 - Lesson 03: Workflow Setup Lab (Airflow)
 
 Should you require a comprehensive understanding of the entire module or the specific content for this week, please review the following:
@@ -22,5 +22,7 @@ In the next lesson, we'll focus on Free time to prep for capstone / module test.
 All rights reserved.  
 This material is confidential and proprietary to Foundry Data & AI Academy. It may not be reproduced, transmitted, or stored, in whole or in part, in any form or by any means without written permission from Foundry Data & AI Academy.
 
-![Foundry Data & AI Academy Logo](https://raw.githubusercontent.com/foundry-ai-academy/fa-cdn/1.0.0/images/FoundryAI_academy_logo_symbol_yellow_space.png).
+![Foundry Data & AI Academy Logo](https://raw.githubusercontent.com/foundry-ai-academy/fa-cdn/1.0.0/images/FoundryAI_academy_logo_symbol_yellow_space.png)
 
+=======
+>>>>>>> main
