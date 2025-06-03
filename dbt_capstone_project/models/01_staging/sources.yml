@@ -1,0 +1,18 @@
+version: 2
+
+sources:
+  - name: sc_lab_m1w4
+    database: CAPSTONE
+    schema: SC_LAB_M1W4
+    tables:
+      - name: forex_crypto_rates_wayne
+        description: "Raw forex and crypto exchange rates"
+        columns:
+          - name: base_currency
+            description: "The base currency code"
+          - name: quote_currency
+            description: "The quote currency code"
+          - name: exchange_rate
+            description: "The exchange rate value"
+          - name: timestamp
+            description: "The timestamp of the rate"
