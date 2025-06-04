@@ -9,4 +9,4 @@ select
   quote_currency,
   exchange_rate,
   timestamp
-from {{ source('sc_lab_m1w4', 'forex_crypto_rates_wayne') }}
+from {{ source('exchange_rates_bronze', 'RAW_KAFKA_EVENTS_FLAT') }}
