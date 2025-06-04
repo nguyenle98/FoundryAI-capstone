@@ -10,16 +10,15 @@ with ranked as (
         base_currency,
         quote_currency,
         exchange_rate,
-        timestamp_utc as timestamp,
+        timestamp_utc,  -- Use the non-keyword column name
         lag(exchange_rate) over (
             partition by base_currency, quote_currency
             order by timestamp_utc
         ) as prev_rate
     from {{ ref('clean_exchange_rates') }}
     {% if is_incremental() %}
-        -- Only process new records since last run
         where timestamp_utc > (
-            select coalesce(max(timestamp), '1900-01-01')
+            select coalesce(max(timestamp_utc), '1900-01-01')
             from {{ this }}
         )
     {% endif %}
@@ -30,7 +29,7 @@ select
     quote_currency,
     exchange_rate,
     prev_rate,
-    timestamp,
+    timestamp_utc,
     case
         when prev_rate is null then null
         else (exchange_rate - prev_rate) / prev_rate * 100
