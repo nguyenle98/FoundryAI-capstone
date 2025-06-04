@@ -37,5 +37,5 @@ jobs:
         working-directory: dbt_dag/dags/dbt/dbt_capstone_project
 
       - name: Run SQLFluff lint
-        run: sqlfluff lint models/
+        run: sqlfluff lint models/ --dialect snowflake
         working-directory: dbt_dag/dags/dbt/dbt_capstone_project
