@@ -2,6 +2,7 @@ import os
 from datetime import datetime
 from cosmos import DbtDag, ProjectConfig, ProfileConfig, ExecutionConfig
 from cosmos.profiles import SnowflakeUserPasswordProfileMapping
+from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 
 # Set project directory for Astronomer
 PROJECT_DIR = '/usr/local/airflow/dags/dbt/dbt_capstone_project'
@@ -34,3 +35,13 @@ dbt_snowflake_dag = DbtDag(
     catchup=False,
     dag_id="dbt_dag",
 )
+# Trigger the ML DAG after dbt finishes
+trigger_ml_dag = TriggerDagRunOperator(
+    task_id="trigger_ml_model_dag",
+    trigger_dag_id="ml_model_dag",  # This must match your ML DAG's dag_id
+    wait_for_completion=False,
+    reset_dag_run=True,
+    dag=dbt_snowflake_dag,
+)
+
+# I tried to use callback on success and dataset expecting dbt_dag and ml_dag to run sequentially, but it didn't work as expected. 

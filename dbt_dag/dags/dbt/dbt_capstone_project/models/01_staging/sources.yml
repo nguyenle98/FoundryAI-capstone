@@ -16,3 +16,26 @@ sources:
             description: "The exchange rate value"
           - name: timestamp
             description: "The timestamp of the rate"
+
+  - name: exchange_rates_bronze
+    database: CAPSTONE
+    schema: EXCHANGE_RATES_BRONZE
+    tables:
+      - name: RAW_KAFKA_EVENTS
+        description: "Raw events ingested from Kafka via Snowflake connector"
+        columns:
+          - name: RECORD_METADATA
+            description: "Kafka metadata"
+          - name: RECORD_CONTENT
+            description: "Event payload"
+      - name: RAW_KAFKA_EVENTS_FLAT
+        description: "Flattened Kafka events with separate columns"
+        columns:
+          - name: BASE_CURRENCY
+            description: "The base currency code"
+          - name: QUOTE_CURRENCY
+            description: "The quote currency code"
+          - name: EXCHANGE_RATE
+            description: "The exchange rate value"
+          - name: TIMESTAMP
+            description: "The timestamp of the rate"
