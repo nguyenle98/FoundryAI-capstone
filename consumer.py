@@ -1,7 +1,7 @@
 import json
 from kafka import KafkaConsumer
 
-KAFKA_BROKER = "localhost:29092"  # Use "kafka:9092" if running inside Docker
+KAFKA_BROKER = "kafka:9092"  # Use "kafka:9092" if running inside Docker
 TOPIC = "forex_event"
 
 consumer = KafkaConsumer(
