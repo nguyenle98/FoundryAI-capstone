@@ -4,6 +4,8 @@ WORKDIR /app
 
 COPY consumer.py .
 
-RUN pip install kafka-python
+COPY secret.env .
+
+RUN pip install kafka-python snowflake-connector-python python-dotenv
 
 CMD ["python", "consumer.py"]

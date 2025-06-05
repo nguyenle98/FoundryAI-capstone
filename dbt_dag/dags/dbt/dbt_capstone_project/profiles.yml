@@ -8,7 +8,7 @@ capstone_project:
       role: "{{ env_var('SNOWFLAKE_ROLE') }}"
       database: "{{ env_var('SNOWFLAKE_DATABASE') }}"
       warehouse: "{{ env_var('SNOWFLAKE_WAREHOUSE') }}"
-      schema: "exchange_rates"
+      schema: "{{ env_var('SNOWFLAKE_SCHEMA') }}"
       threads: 4
     ci:
       type: snowflake

@@ -368,6 +368,8 @@ services:
       dockerfile: Dockerfile.consumer
     depends_on:
       - kafka
+    env_file: 
+      - ./secret.env
 
 volumes:
   postgres-db-volume:

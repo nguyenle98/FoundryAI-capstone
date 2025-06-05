@@ -43,3 +43,5 @@ trigger_ml_dag = TriggerDagRunOperator(
     reset_dag_run=True,
     dag=dbt_snowflake_dag,
 )
+
+# I tried to use callback on success and dataset expecting dbt_dag and ml_dag to run sequentially, but it didn't work as expected. 

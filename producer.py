@@ -1,31 +1,46 @@
-import json, time, requests
+import json
+import time
+import requests
 from kafka import KafkaProducer
-from datetime import datetime
+from kafka.errors import NoBrokersAvailable
 
-KAFKA_BROKER = "kafka:9092"
+API_URL = "https://api.exchangerate.host/live?access_key=5d6f42103c15bbe91d8a473fbaa967d5"
+KAFKA_BROKER = "kafka:9092" 
 TOPIC = "forex_event"
 
-producer = KafkaProducer(
-    bootstrap_servers=[KAFKA_BROKER],
-    value_serializer=lambda v: json.dumps(v).encode("utf-8")
-)
+for _ in range(10):
+    try:
+        producer = KafkaProducer(
+            bootstrap_servers=[KAFKA_BROKER],
+            value_serializer=lambda v: json.dumps(v).encode("utf-8")
+        )
+        break
+    except NoBrokersAvailable:
+        print("Kafka broker not available, retrying in 5 seconds...")
+        time.sleep(5)
+else:
+    raise Exception("Kafka broker not available after multiple attempts.")
 
-while True:
-    resp = requests.get("https://api.exchangerate.host/live?access_key=5d6f42103c15bbe91d8a473fbaa967d5", timeout=10)
+def fetch_and_send():
+    resp = requests.get(API_URL, timeout=10)
     resp.raise_for_status()
-    payload = resp.json()
-    base = payload["source"]
-    ts = payload["timestamp"]
-    quotes = payload["quotes"]
-    for pair, rate in quotes.items():
-        quote = pair[len(base):] if pair.startswith(base) else pair
-        record = {
-            "base_currency": base,
-            "quote_currency": quote,
+    data = resp.json()
+    base_currency = data.get("source")
+    timestamp = data.get("timestamp")
+    quotes = data.get("quotes", {})
+    for quote, rate in quotes.items():
+        # Remove the base currency prefix (e.g., USDJPY -> JPY)
+        quote_currency = quote[len(base_currency):]
+        message = {
+            "base_currency": base_currency,
+            "quote_currency": quote_currency,
             "exchange_rate": rate,
-            "timestamp": ts
+            "timestamp": timestamp
         }
-        producer.send(TOPIC, record)
+        producer.send(TOPIC, value=message)
+        print(f"Sent: {message}")
 
-    producer.flush()
-    time.sleep(60)  # Adjust the sleep time as needed
+if __name__ == "__main__":
+    while True:
+        fetch_and_send()
+        time.sleep(100)  
