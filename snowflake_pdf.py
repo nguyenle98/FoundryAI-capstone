@@ -4,6 +4,12 @@ from snowflake import connector
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
 
+'''Connects to Snowflake
+
+Reads fx_analysis
+
+Generates a nicely formatted PDF called forex_analysis.pdf'''
+
 # Load environment variables from .env file
 load_dotenv()
 
