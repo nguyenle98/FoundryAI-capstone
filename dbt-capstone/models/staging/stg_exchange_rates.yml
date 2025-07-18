@@ -1,0 +1,19 @@
+version: 2
+
+models:
+  - name: stg_exchange_rates
+    description: "Cleaned and standardized exchange rates"
+    columns:
+      - name: base_currency
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['USD']
+      
+      - name: quote_currency
+        tests:
+          - not_null
+      
+      - name: exchange_rate
+        tests:
+          - not_null

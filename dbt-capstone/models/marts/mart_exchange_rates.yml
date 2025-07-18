@@ -1,0 +1,22 @@
+version: 2
+
+models:
+  - name: mart_exchange_rates
+    description: "One big table of exchange rates"
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - quote_currency
+            - timestamp
+    columns:
+      - name: base_currency
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['USD']
+              
+      - name: exchange_rate
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: '>0' 
