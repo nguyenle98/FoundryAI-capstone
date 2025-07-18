@@ -5,10 +5,12 @@ from airflow import DAG
 from airflow.operators.python import PythonOperator
 from datetime import datetime, timedelta
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
+from airflow.sdk import Variable, dag, task
+from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
 
 def fetch_and_load_to_snowflake(**context):
     # Fetch API data
-    url = "https://api.exchangerate.host/live?access_key=24350d1a3226aad12b9e47f7fe2fc424"
+    url = Variable.get("url", default=None)
     response = requests.get(url)
     data = response.json()
 
@@ -34,6 +36,8 @@ default_args = {
     "retry_delay": timedelta(minutes=2),
 }
 
+
+
 with DAG(
     dag_id="Ingest_API",
     default_args=default_args,
@@ -46,3 +50,10 @@ with DAG(
         task_id="fetch_and_load_to_snowflake",
         python_callable=fetch_and_load_to_snowflake,
     )
+    trigger_dependent_dag = TriggerDagRunOperator(
+        task_id="trigger_dependent_dag",
+        trigger_dag_id="dbt_dag",
+        wait_for_completion=True,
+        deferrable=True,
+    )
+    ingest_api>> trigger_dependent_dag

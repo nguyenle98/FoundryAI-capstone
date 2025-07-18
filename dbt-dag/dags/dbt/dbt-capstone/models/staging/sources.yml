@@ -18,3 +18,11 @@ sources:
             description: "Full API response as JSON"
           - name: INGESTED_AT
             description: "Timestamp when data was ingested"
+
+      - name: currency
+        description: "Currency data with codes and names"
+        columns:
+          - name: CURRENCY
+            description: "Name of the currency"
+          - name: CODE
+            description: "ISO code of the currency"

@@ -17,3 +17,19 @@ models:
       - name: exchange_rate
         tests:
           - not_null
+
+  - name: stg_currency
+    description: "dedup currency data"
+    columns:
+      - name: currency
+        description: "Name of the currency"
+        tests:
+          - not_null
+          - unique
+
+      - name: code
+        description: "ISO code of the currency"
+        tests:
+          - not_null
+          - unique
+   

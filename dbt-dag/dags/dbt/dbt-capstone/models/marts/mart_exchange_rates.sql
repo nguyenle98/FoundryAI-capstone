@@ -18,26 +18,29 @@ with source as (
         exchange_rate,
         timestamp,
         ingested_at,
-        -- Take the latest record by ingested_at for each currency pair and timestamp
-        row_number() over (
-            partition by quote_currency, timestamp 
-            order by ingested_at desc
-        ) as rn
     from {{ ref('stg_exchange_rates') }}
-),
-
-deduplicated as (
-    select
-        base_currency,
-        quote_currency,
-        exchange_rate,
-        timestamp
-    from source
-    where rn = 1  -- Keep only the latest record
-)
-
-select * from deduplicated
-
-{% if is_incremental() %}
+    {% if is_incremental() %}
     where timestamp > (select max(timestamp) from {{ this }})
-{% endif %}
+    {% endif %}
+), currency as (
+    select
+        currency,
+        code
+    from {{ ref('stg_currency') }}
+), final as (
+    select
+        s.base_currency,
+        s.quote_currency,
+        s.exchange_rate,
+        s.timestamp,
+        s.ingested_at,
+        c.code as quote_currency_code,
+        c.currency
+    from source s
+    left join currency c on s.quote_currency = c.code
+    
+)
+select * from final
+
+
+
