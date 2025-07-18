@@ -266,6 +266,15 @@ wheels = [
 ]
 
 [[package]]
+name = "chardet"
+version = "5.2.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/f3/0d/f7b6ab21ec75897ed80c17d79b15951a719226b9fababf1e40ea74d69079/chardet-5.2.0.tar.gz", hash = "sha256:1b3b6ff479a8c414bc3fa2c0852995695c4a026dcd6d0633b2dd092ca39c1cf7", size = 2069618, upload-time = "2023-08-01T19:23:02.662Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/38/6f/f5fbc992a329ee4e0f288c1fe0e2ad9485ed064cac731ed2fe47dcc38cbf/chardet-5.2.0-py3-none-any.whl", hash = "sha256:e1cf59446890a00105fe7b7912492ea04b6e6f06d4b742b2c788469e34c82970", size = 199385, upload-time = "2023-08-01T19:23:00.661Z" },
+]
+
+[[package]]
 name = "charset-normalizer"
 version = "3.4.2"
 source = { registry = "https://pypi.org/simple" }
@@ -588,6 +597,21 @@ wheels = [
 ]
 
 [[package]]
+name = "diff-cover"
+version = "9.6.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "chardet" },
+    { name = "jinja2" },
+    { name = "pluggy" },
+    { name = "pygments" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/4c/81/0496938bb72606231b2518b6fd404a5adfde3c1b60a97d0dc39a92b25570/diff_cover-9.6.0.tar.gz", hash = "sha256:75e5bc056dcaa68c6c87c9fb4e07c9e60daef15b6e8d034d56d2da9e2c84a872", size = 99756, upload-time = "2025-07-17T02:18:44.286Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/30/c5/5f3b69c74328c6a3a3a52a084afbd0c2d15c4b95e7784b752072c133f01d/diff_cover-9.6.0-py3-none-any.whl", hash = "sha256:29fbeb52d77a0b8c811e5580d5dbf41801a838da2ed54319a599da8f7233c547", size = 55671, upload-time = "2025-07-17T02:18:42.572Z" },
+]
+
+[[package]]
 name = "distro"
 version = "1.9.0"
 source = { registry = "https://pypi.org/simple" }
@@ -855,6 +879,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/76/66/650a33bd90f786193e4de4b3ad86ea60b53c89b669a5c7be931fac31cdb0/importlib_metadata-8.7.0.tar.gz", hash = "sha256:d13b81ad223b890aa16c5471f2ac3056cf76c5f10f82d6f9292f0b415f389000", size = 56641, upload-time = "2025-04-27T15:29:01.736Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/20/b0/36bd937216ec521246249be3bf9855081de4c5e06a0c9b4219dbeda50373/importlib_metadata-8.7.0-py3-none-any.whl", hash = "sha256:e5dd1551894c77868a30651cef00984d50e1002d06942a7101d34870c5f02afd", size = 27656, upload-time = "2025-04-27T15:29:00.214Z" },
+]
+
+[[package]]
+name = "iniconfig"
+version = "2.1.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/f2/97/ebf4da567aa6827c909642694d71c9fcf53e5b504f2d96afea02718862f3/iniconfig-2.1.0.tar.gz", hash = "sha256:3abbd2e30b36733fee78f9c7f7308f2d0050e88f0087fd25c2645f63c773e1c7", size = 4793, upload-time = "2025-03-19T20:09:59.721Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/2c/e1/e6716421ea10d38022b952c159d5161ca1193197fb744506875fbb87ea7b/iniconfig-2.1.0-py3-none-any.whl", hash = "sha256:9deba5723312380e77435581c6bf4935c94cbfab9b1ed33ef8d238ea168eb760", size = 6050, upload-time = "2025-03-19T20:10:01.071Z" },
 ]
 
 [[package]]
@@ -1357,6 +1390,7 @@ dependencies = [
     { name = "scikit-learn" },
     { name = "setuptools" },
     { name = "snowflake-connector-python" },
+    { name = "sqlfluff" },
     { name = "streamlit" },
     { name = "tiktoken" },
     { name = "watchdog" },
@@ -1384,6 +1418,7 @@ requires-dist = [
     { name = "scikit-learn", specifier = ">=1.7.0" },
     { name = "setuptools", specifier = ">=80.9.0" },
     { name = "snowflake-connector-python", specifier = ">=3.16.0" },
+    { name = "sqlfluff", specifier = ">=3.4.2" },
     { name = "streamlit", specifier = ">=1.45.1" },
     { name = "tiktoken", specifier = ">=0.9.0" },
     { name = "watchdog", specifier = ">=6.0.0" },
@@ -1932,6 +1967,15 @@ wheels = [
 ]
 
 [[package]]
+name = "pluggy"
+version = "1.6.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/f9/e2/3e91f31a7d2b083fe6ef3fa267035b518369d9511ffab804f839851d2779/pluggy-1.6.0.tar.gz", hash = "sha256:7dcc130b76258d33b90f61b658791dede3486c3e6bfb003ee5c9bfb396dd22f3", size = 69412, upload-time = "2025-05-15T12:30:07.975Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/54/20/4d324d65cc6d9205fabedc306948156824eb9f0ee1633355a8f7ec5c66bf/pluggy-1.6.0-py3-none-any.whl", hash = "sha256:e920276dd6813095e9377c0bc5566d94c932c33b27a3e3945d8389c374dd4746", size = 20538, upload-time = "2025-05-15T12:30:06.134Z" },
+]
+
+[[package]]
 name = "prompt-toolkit"
 version = "3.0.51"
 source = { registry = "https://pypi.org/simple" }
@@ -2204,6 +2248,22 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/9f/bb/18dc3062d37db6c491392007dfd1a7f524bb95886eb956569ac38a23a784/PyPDF2-3.0.1.tar.gz", hash = "sha256:a74408f69ba6271f71b9352ef4ed03dc53a31aa404d29b5d31f53bfecfee1440", size = 227419, upload-time = "2022-12-31T10:36:13.13Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/8e/5e/c86a5643653825d3c913719e788e41386bee415c2b87b4f955432f2de6b2/pypdf2-3.0.1-py3-none-any.whl", hash = "sha256:d16e4205cfee272fbdc0568b68d82be796540b1537508cef59388f839c191928", size = 232572, upload-time = "2022-12-31T10:36:10.327Z" },
+]
+
+[[package]]
+name = "pytest"
+version = "8.4.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "colorama", marker = "sys_platform == 'win32'" },
+    { name = "iniconfig" },
+    { name = "packaging" },
+    { name = "pluggy" },
+    { name = "pygments" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/08/ba/45911d754e8eba3d5a841a5ce61a65a685ff1798421ac054f85aa8747dfb/pytest-8.4.1.tar.gz", hash = "sha256:7c67fd69174877359ed9371ec3af8a3d2b04741818c51e5e99cc1742251fa93c", size = 1517714, upload-time = "2025-06-18T05:48:06.109Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/29/16/c8a903f4c4dffe7a12843191437d7cd8e32751d5de349d45d3fe69544e87/pytest-8.4.1-py3-none-any.whl", hash = "sha256:539c70ba6fcead8e78eebbf1115e8b589e7565830d7d006a8723f19ac8a0afb7", size = 365474, upload-time = "2025-06-18T05:48:03.955Z" },
 ]
 
 [[package]]
@@ -2724,6 +2784,29 @@ wheels = [
 ]
 
 [[package]]
+name = "sqlfluff"
+version = "3.4.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "chardet" },
+    { name = "click" },
+    { name = "colorama" },
+    { name = "diff-cover" },
+    { name = "jinja2" },
+    { name = "pathspec" },
+    { name = "platformdirs" },
+    { name = "pytest" },
+    { name = "pyyaml" },
+    { name = "regex" },
+    { name = "tblib" },
+    { name = "tqdm" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/a9/43/871e42d09ceddf510c976d7a0daa7c04c643b0f428c563c5f6b5337076f9/sqlfluff-3.4.2.tar.gz", hash = "sha256:1777272e4fdac5adef1b89ec25675426e77285d4dc95a055b12bd24181e33f40", size = 903626, upload-time = "2025-07-11T20:23:13.72Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/7c/8f/3550d1663fbc16dbf2bd706ecb10ab18c7be0e14a712108f0ec3258a2ade/sqlfluff-3.4.2-py3-none-any.whl", hash = "sha256:14109d858da448a4bd0be5a107f4e48de33b1749e6cfc8cc03ec6c045bc9b8ad", size = 906359, upload-time = "2025-07-11T20:23:12.165Z" },
+]
+
+[[package]]
 name = "sqlparse"
 version = "0.5.3"
 source = { registry = "https://pypi.org/simple" }
@@ -2759,6 +2842,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/f0/46/9b3f73886f82d27849ce1e7a74ae7c39f5323e46da0b6e8847ad4c25f44c/streamlit-1.45.1.tar.gz", hash = "sha256:e37d56c0af5240dbc240976880e81366689c290a559376417246f9b3f51b4217", size = 9463953, upload-time = "2025-05-12T20:40:30.562Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/13/e6/69fcbae3dd2fcb2f54283a7cbe03c8b944b79997f1b526984f91d4796a02/streamlit-1.45.1-py3-none-any.whl", hash = "sha256:9ab6951585e9444672dd650850f81767b01bba5d87c8dac9bc2e1c859d6cc254", size = 9856294, upload-time = "2025-05-12T20:40:27.875Z" },
+]
+
+[[package]]
+name = "tblib"
+version = "3.1.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/54/95/4b3044ec4bf248186769629bbfb495a458deb6e4c1f9eff7f298ae1e336e/tblib-3.1.0.tar.gz", hash = "sha256:06404c2c9f07f66fee2d7d6ad43accc46f9c3361714d9b8426e7f47e595cd652", size = 30766, upload-time = "2025-03-31T12:58:27.473Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/27/44/aa5c8b10b2cce7a053018e0d132bd58e27527a0243c4985383d5b6fd93e9/tblib-3.1.0-py3-none-any.whl", hash = "sha256:670bb4582578134b3d81a84afa1b016128b429f3d48e6cbbaecc9d15675e984e", size = 12552, upload-time = "2025-03-31T12:58:26.142Z" },
 ]
 
 [[package]]

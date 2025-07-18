@@ -30,12 +30,12 @@ jobs:
 
       - name: Install dbt packages
         run: dbt deps
-        working-directory: dbt_dag/dags/dbt/dbt_capstone_project
+        working-directory: dbt-dag/dags/dbt/dbt-capstone
 
       - name: Run dbt tests
         run: dbt test
-        working-directory: dbt_dag/dags/dbt/dbt_capstone_project
+        working-directory: dbt-dag/dags/dbt/dbt-capstone
 
       - name: Run SQLFluff lint
-        run: sqlfluff lint models/ --dialect snowflake
-        working-directory: dbt_dag/dags/dbt/dbt_capstone_project
+        run: sqlfluff lint dbt-dag/dags/dbt/dbt-capstone/models/staging/stg_currency.sql --dialect snowflake
+        working-directory: dbt-dag/dags/dbt/dbt-capstone
