@@ -5,6 +5,7 @@ build/
 dist/
 wheels/
 *.egg-info
+capstone_project_grading.md
 
 # Virtual environments
 .venv

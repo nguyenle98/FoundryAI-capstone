@@ -1,0 +1,25 @@
+version: 2
+
+sources:
+  - name: api_sources
+    database: CAPSTONE_FINAL
+    schema: RAW
+    tables:
+      - name: live_rates
+        description: "Exchange rate data ingested from exchangerate.host API"
+        columns:
+          - name: BASE
+            description: "Base currency"
+            tests:
+              - not_null
+          - name: DATE
+            description: "Unix timestamp"
+            tests:
+              - not_null
+              - unique
+          - name: RATES
+            description: "JSON object of currency rates"
+          - name: FULL_RESPONSE
+            description: "Full API response as JSON"
+          - name: INGESTED_AT
+            description: "Timestamp when data was ingested"

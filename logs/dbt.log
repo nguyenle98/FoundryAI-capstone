@@ -1,0 +1,29 @@
+[0m23:14:23.297808 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'invocation', 'label': 'start', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x000001D34B8C3050>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x000001D34B190200>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x000001D34B3371A0>]}
+
+
+============================== 23:14:23.482123 | 9e8ee665-ee64-44f9-8c37-b1114c201fff ==============================
+[0m23:14:23.482123 [info ] [MainThread]: Running with dbt=1.10.4
+[0m23:14:23.482123 [debug] [MainThread]: running dbt with arguments {'printer_width': '80', 'indirect_selection': 'eager', 'write_json': 'True', 'log_cache_events': 'False', 'partial_parse': 'True', 'cache_selected_only': 'False', 'profiles_dir': 'C:\\Users\\spide\\.dbt', 'version_check': 'True', 'fail_fast': 'False', 'log_path': 'logs', 'debug': 'False', 'warn_error': 'None', 'use_colors': 'True', 'use_experimental_parser': 'False', 'empty': 'None', 'quiet': 'False', 'no_print': 'None', 'warn_error_options': 'WarnErrorOptionsV2(error=[], warn=[], silence=[])', 'invocation_command': 'dbt init', 'introspect': 'True', 'static_parser': 'True', 'target_path': 'None', 'log_format': 'default', 'send_anonymous_usage_stats': 'True'}
+[0m23:14:43.970197 [debug] [MainThread]: Starter project path: C:\Users\spide\Downloads\Foundry AI\M03W01\.venv\Lib\site-packages\dbt\include\starter_project
+[0m23:14:44.008681 [info ] [MainThread]: 
+Your new dbt project "capstone" was created!
+
+For more information on how to configure the profiles.yml file,
+please consult the dbt documentation here:
+
+  https://docs.getdbt.com/docs/configure-your-profile
+
+One more thing:
+
+Need help? Don't hesitate to reach out to us via GitHub issues or on Slack:
+
+  https://community.getdbt.com/
+
+Happy modeling!
+
+[0m23:14:44.008681 [info ] [MainThread]: Setting up your profile.
+[0m23:25:20.638787 [info ] [MainThread]: Profile capstone written to C:\Users\spide\.dbt\profiles.yml using target's profile_template.yml and your supplied values. Run 'dbt debug' to validate the connection.
+[0m23:25:20.644363 [debug] [MainThread]: Command `dbt init` succeeded at 23:25:20.644363 after 657.63 seconds
+[0m23:25:20.645368 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'invocation', 'label': 'end', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x000001D34B33AE40>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x000001D34BD79C10>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x000001D3642E9E80>]}
+[0m23:25:20.647361 [debug] [MainThread]: Flushing usage events
+[0m23:25:22.202629 [debug] [MainThread]: An error was encountered while trying to flush usage events
