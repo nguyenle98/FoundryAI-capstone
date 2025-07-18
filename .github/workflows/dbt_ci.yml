@@ -2,7 +2,7 @@ name: dbt CI
 
 on:
   pull_request:
-    branches: [ main, transform-task ]  
+    branches: [ main, uat ]  
 
 jobs:
   dbt-checks:
