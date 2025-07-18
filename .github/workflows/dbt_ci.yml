@@ -37,5 +37,7 @@ jobs:
         working-directory: dbt-dag/dags/dbt/dbt-capstone
       
       - name: Run dbt tests
+        env:
+          SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
         run: dbt test
         working-directory: dbt-dag/dags/dbt/dbt-capstone
