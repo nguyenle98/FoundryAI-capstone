@@ -33,7 +33,7 @@ jobs:
         working-directory: dbt-dag/dags/dbt/dbt-capstone
         
       - name: Run SQLFluff lint
-        run: sqlfluff lint dbt-dag/dags/dbt/dbt-capstone/models/staging/stg_currency.sql --dialect snowflake
+        run: sqlfluff lint models/staging/stg_currency.sql --dialect snowflake
         working-directory: dbt-dag/dags/dbt/dbt-capstone
       
       - name: Run dbt tests
