@@ -1,5 +1,5 @@
 capstone:
-  ci:
+  default:
     account: '{{ env_var(''SNOWFLAKE_ACCOUNT'') }}'
     database: '{{ env_var(''SNOWFLAKE_DATABASE'') }}'
     user: '{{ env_var(''SNOWFLAKE_USER:'') }}'
