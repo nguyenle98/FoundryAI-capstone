@@ -5,10 +5,7 @@
 ) }}
 
 /*
-This is a OneBigTable because:
-- All data is in one denormalized table
-- No joins needed to get complete information
-- Each row contains all necessary information (base currency, quote currency, rate, timestamp)
+This is dimensional modeling. 
 */
 
 with source as (

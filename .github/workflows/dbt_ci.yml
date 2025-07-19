@@ -2,19 +2,19 @@ name: dbt CI
 
 on:
   pull_request:
-    branches: [ main, transform-task ]  
+    branches: [ main, uat ]  
 
 jobs:
   dbt-checks:
     runs-on: ubuntu-latest
     env:
-      SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
-      SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
+      SNOWFLAKE_ACCOUNT: XATDYDZ-NF59370
+      SNOWFLAKE_USER: NGUYENLE98
       SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
-      SNOWFLAKE_ROLE: ${{ secrets.SNOWFLAKE_ROLE }}
-      SNOWFLAKE_DATABASE: ${{ secrets.SNOWFLAKE_DATABASE }}
+      SNOWFLAKE_ROLE: ACCOUNTADMIN
+      SNOWFLAKE_DATABASE: CAPSTONE_FINAL
       SNOWFLAKE_WAREHOUSE: ${{ secrets.SNOWFLAKE_WAREHOUSE }}
-      SNOWFLAKE_SCHEMA: ${{ secrets.SNOWFLAKE_SCHEMA }}
+      SNOWFLAKE_SCHEMA: DB_SCHEMA
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -30,12 +30,12 @@ jobs:
 
       - name: Install dbt packages
         run: dbt deps
-        working-directory: dbt_dag/dags/dbt/dbt_capstone_project
-
+        working-directory: dbt-dag/dags/dbt/dbt-capstone
+        
+      - name: Run SQLFluff lint
+        run: sqlfluff lint models/staging/stg_currency.sql --dialect snowflake
+        working-directory: dbt-dag/dags/dbt/dbt-capstone
+      
       - name: Run dbt tests
         run: dbt test
-        working-directory: dbt_dag/dags/dbt/dbt_capstone_project
-
-      - name: Run SQLFluff lint
-        run: sqlfluff lint models/ --dialect snowflake
-        working-directory: dbt_dag/dags/dbt/dbt_capstone_project
+        working-directory: dbt-dag/dags/dbt/dbt-capstone

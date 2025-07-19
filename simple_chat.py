@@ -1,78 +1,67 @@
-from dotenv import load_dotenv
 import os
-from langchain_litellm import ChatLiteLLM
-from langchain_core.messages import HumanMessage, SystemMessage
+from dotenv import load_dotenv
+from langchain.chat_models import ChatOpenAI
+from langchain.memory import ConversationBufferMemory
+from langchain.chains import ConversationalRetrievalChain
+from langchain.vectorstores import Pinecone
+from langchain.embeddings import OpenAIEmbeddings
+import pinecone
+import snowflake.connector
+import pandas as pd
 
-# Load environment variables from .env file
 load_dotenv()
 
-# Default configuration
-MODEL_NAME = "gpt-3.5-turbo"
-SYSTEM_PROMPT = "You are a helpful FoundryAI training assistant. FoundryAI is a educational facility for AI training. Introduce yourself and ask for the user's name."
+# 1. Setup Pinecone retriever
+pinecone.init(api_key=os.getenv("PINECONE_API_KEY"), environment=os.getenv("PINECONE_ENV"))
+index = pinecone.Index(os.getenv("PINECONE_INDEX"))
+embeddings = OpenAIEmbeddings()
+vectorstore = Pinecone(index, embeddings.embed_query, "text")
+retriever = vectorstore.as_retriever()
 
-def get_single_llm_response(prompt: str, model: str = MODEL_NAME):
-    """
-    Make a single API call to the LLM without any context.
-    
-    Args:
-        prompt (str): The user's message
-        model (str): The model to use (defaults to MODEL_NAME)
-    
-    Returns:
-        str: The model's response or None if there's an error
-    """
-    try:
-        # Initialize the LiteLLM chat model
-        llm = ChatLiteLLM(
-            model=model,
-            temperature=0.7,
-            max_tokens=500
-        )
-        
-        # Create a simple prompt with just the user message
-        messages = [
-            HumanMessage(content=prompt)
-        ]
-        
-        print(f"HumanMessage sent to LLM: {messages}")
+# 2. Setup Snowflake connector
+def query_snowflake(sql):
+    conn = snowflake.connector.connect(
+        user=os.getenv("SNOWFLAKE_USER"),
+        password=os.getenv("SNOWFLAKE_PASSWORD"),
+        account=os.getenv("SNOWFLAKE_ACCOUNT"),
+        warehouse=os.getenv("SNOWFLAKE_WAREHOUSE"),
+        database=os.getenv("SNOWFLAKE_DATABASE"),
+        schema=os.getenv("SNOWFLAKE_SCHEMA"),
+        role=os.getenv("SNOWFLAKE_ROLE"),
+    )
+    df = pd.read_sql(sql, conn)
+    conn.close()
+    return df.to_string(index=False)
 
-        # Get response
-        response = llm.invoke(messages)
-        print(f"Full Response from LLM: {response}")
-        return response.content
-    except Exception as e:
-        print(f"Error: {str(e)}")
-        return None
-    
-def get_llm_response_with_context(prompt: str, system_prompt: str, model: str = MODEL_NAME):
-    try:
-        # Initialize the LiteLLM chat model
-        llm = ChatLiteLLM(
-            model=model,
-            temperature=0.7,
-            max_tokens=500
-        )
-        
-        messages = [
-            SystemMessage(content=system_prompt),
-            HumanMessage(content=prompt)
-        ]
-        
-        
-        # Get response
-        response = llm.invoke(messages)
-        print(f"Full Response from LLM: {response}")
-        
-        return response.content
-    except Exception as e:
-        print(f"Error: {str(e)}")
-        return None
-    
-if __name__ == "__main__":
-    user_prompt = 'Hello, how are you?'
-    system_prompt = "You are a helpful FoundryAI training assistant. FoundryAI is a educational facility for AI training. Introduce yourself and ask for the user's name."
-    answer_single = get_single_llm_response(user_prompt)
-    answer_with_context = get_llm_response_with_context(user_prompt, system_prompt)
-    print(f'User prompt: {user_prompt}') 
-    print(f'Answer with no context: {answer_single}')
-    print(f'Answer with context: {answer_with_context}')
+# 3. Setup LLM and memory
+llm = ChatOpenAI(temperature=0.7, openai_api_key=os.getenv("OPENAI_API_KEY"))
+memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
+qa = ConversationalRetrievalChain.from_llm(llm, retriever, memory=memory, return_source_documents=True)
+
+# 4. Intent detection (simple version)
+def detect_intent(question):
+    if "table" in question or "rate" in question or "exchange" in question:
+        return "SQL"
+    elif "document" in question or "pdf" in question:
+        return "RAG"
+    else:
+        return "CHAT"
+
+# 5. CLI loop
+print("Welcome to the Capstone Chatbot! (type 'exit' to quit)")
+while True:
+    user_input = input("You: ")
+    if user_input.lower() == "exit":
+        break
+    intent = detect_intent(user_input)
+    if intent == "SQL":
+        # For demo, use a fixed query or parse from user_input
+        sql = "SELECT * FROM DB_SCHEMA.MART_EXCHANGE_RATES LIMIT 5"
+        result = query_snowflake(sql)
+        print("Bot (Warehouse):\n", result)
+    elif intent == "RAG":
+        result = qa({"question": user_input})
+        print("Bot (PDF):", result["answer"])
+        # Optionally print citations: print(result["source_documents"])
+    else:
+        print("Bot: I'm here to help with your data and documents!")

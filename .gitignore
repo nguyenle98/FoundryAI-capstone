@@ -10,3 +10,4 @@ capstone_project_grading.md
 # Virtual environments
 .venv
 .env
+.terraform*
