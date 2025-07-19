@@ -124,8 +124,21 @@ def get_embeddings():
     return _embeddings
 
 def get_connection():
-    """Get the database connection instance."""
-    global _conn
-    if _conn is None:
-        _conn = initialize_connection()
-    return _conn 
+    try:
+        print("DEBUG: Entering get_connection()")
+        conn = duckdb.connect('pdf_rag_demo.db')
+        print("DEBUG: DuckDB connection established")
+        # Optionally, check if table exists
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS pdf_embeddings (
+                id VARCHAR PRIMARY KEY,
+                text VARCHAR,
+                embedding FLOAT[384],
+                page_number INTEGER
+            )
+        """)
+        print("DEBUG: pdf_embeddings table checked/created")
+        return conn
+    except Exception as e:
+        print(f"ERROR in get_connection: {e}")
+        raise

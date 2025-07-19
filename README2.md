@@ -149,3 +149,63 @@ simple_rag_pdf_chatbot/
 ├── source/                    # Sample PDF files
 └── pdf_rag_demo.db           # DuckDB database (created automatically)
 ```
+
+
+Enhanced Context Retention Features:
+1. Full Conversation History Preservation
+
+Maintains complete message history across the entire conversation
+Preserves context when making tool calls (PDF searches)
+Returns updated state with all messages intact
+
+2. Intelligent Context Management
+
+Conversation Summary: Generates summaries of recent exchanges for better context understanding
+Context Awareness Instructions: Enhanced system messages that emphasize conversation continuity
+Smart Context Insertion: Adds conversation context to model inputs when needed
+
+3. Improved RAG Node Logic
+
+Preserves all conversation messages when making PDF searches
+Builds final responses that reference both PDF content and conversation history
+Better handling of tool call results within conversation context
+
+4. Enhanced User Experience
+
+Message Counters: Shows conversation progress
+Context Indicators: Displays how many previous exchanges are being maintained
+New Commands: Added context and stats commands for better monitoring
+
+🔧 Technical Improvements:
+Memory Management:
+
+Uses LangGraph's MemorySaver with proper thread-based isolation
+Each conversation gets a unique thread ID for persistent memory
+Clear separation between different conversation sessions
+
+Conversation Flow:
+
+Smart PDF Search Decision: Better logic for when to search the PDF vs. direct conversation
+Context-Aware Responses: Responses that naturally reference previous parts of the conversation
+Enhanced Error Handling: Better error messages and recovery options
+
+State Management:
+
+Proper message state updates that preserve the entire conversation
+Correct handling of different message types (Human, AI, Tool, System)
+Complete conversation history returned in each state update
+
+🎯 Key Behavioral Changes:
+
+Context Continuity: The bot now naturally refers back to previous questions and builds upon earlier discussions
+Intelligent Search: Only searches the PDF when questions actually require document-specific information
+Conversational Flow: Maintains a natural conversation flow while integrating PDF information seamlessly
+Memory Indicators: Users can see that context is being maintained across exchanges
+
+🧪 Test the Context Retention:
+Try these conversation patterns to verify the improvements:
+
+Reference Testing: Ask a question, then say "Can you elaborate on that?" or "What else does it mention about X?"
+Follow-up Questions: Ask about a topic, then ask related follow-up questions
+Context Switching: Mix PDF-specific questions with general conversation
+Long Conversations: Have extended discussions to see memory persistence

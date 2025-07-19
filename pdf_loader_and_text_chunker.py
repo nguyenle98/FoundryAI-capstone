@@ -17,7 +17,7 @@ PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
 PINECONE_ENV = os.getenv("PINECONE_ENV")  # e.g., "us-east-1-aws"
 PINECONE_INDEX = os.getenv("PINECONE_INDEX")
 
-PDF_PATH = "forex_analysis.pdf"
+PDF_PATH = "1912.06680.pdf"
 EMBEDDING_MODEL = "text-embedding-3-small"
 
 MAX_TOKENS = 100

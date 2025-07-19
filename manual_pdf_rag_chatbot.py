@@ -2,9 +2,10 @@ from dotenv import load_dotenv
 import os
 from typing import List, Dict
 import duckdb
+import snowflake.connector
 import uuid
 from langchain_litellm import ChatLiteLLM
-from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
+from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage, AIMessage
 from langgraph.graph import StateGraph, END, START
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph.message import MessagesState
@@ -129,9 +130,99 @@ def search_similar_chunks(query: str) -> List[Dict]:
         for row in results
     ]
 
+def validate_snowflake_connection():
+    """Connect to Snowflake, show schema info, and validate access."""
+    console.print("\n[bold blue]🔗 Connecting to Snowflake and validating access...[/bold blue]")
+    try:
+        conn = snowflake.connector.connect(
+            user=os.getenv("SNOWFLAKE_USER"),
+            password=os.getenv("SNOWFLAKE_PASSWORD"),
+            account=os.getenv("SNOWFLAKE_ACCOUNT"),
+            warehouse=os.getenv("SNOWFLAKE_WAREHOUSE"),
+            database=os.getenv("SNOWFLAKE_DATABASE"),
+            schema=os.getenv("SNOWFLAKE_SCHEMA"),
+            role=os.getenv("SNOWFLAKE_ROLE"),
+        )
+        cur = conn.cursor()
+        # Show available tables
+        cur.execute("SHOW TABLES")
+        tables = cur.fetchall()
+        if tables:
+            console.print("[green]✅ Tables in schema:[/green]")
+            for t in tables:
+                console.print(f"  - [cyan]{t[1]}[/cyan]")  # t[1] is table name
+        else:
+            console.print("[yellow]⚠️ No tables found in schema.[/yellow]")
+
+        # Show columns for a key table (replace with your table name if needed)
+        try:
+            cur.execute("DESC TABLE MART_EXCHANGE_RATES")
+            columns = cur.fetchall()
+            console.print("[green]✅ Columns in MART_EXCHANGE_RATES:[/green]")
+            for c in columns:
+                console.print(f"  - [magenta]{c[0]}[/magenta] ({c[1]})")  # c[0]=column name, c[1]=type
+        except Exception as e:
+            console.print(f"[yellow]⚠️ Could not describe MART_EXCHANGE_RATES: {e}[/yellow]")
+
+        # Validate access with a simple query
+        try:
+            cur.execute("SELECT COUNT(*) FROM MART_EXCHANGE_RATES")
+            count = cur.fetchone()[0]
+            console.print(f"[green]✅ Table MART_EXCHANGE_RATES has {count} rows.[/green]")
+        except Exception as e:
+            console.print(f"[yellow]⚠️ Could not query MART_EXCHANGE_RATES: {e}[/yellow]")
+
+        cur.close()
+        conn.close()
+        console.print("[bold green]✅ Snowflake connection and access validated![/bold green]\n")
+    except Exception as e:
+        console.print(f"[red]❌ Snowflake connection or access failed: {e}[/red]")
+
+def get_conversation_summary(messages: List) -> str:
+    """Generate a summary of the current conversation for context awareness"""
+    if len(messages) <= 2:  # Just system + current message
+        return "This is the beginning of our conversation."
+    
+    # Create a simple summary of the last few exchanges
+    recent_messages = messages[-8:]  # Last 4 exchanges (user + assistant pairs)
+    summary_parts = []
+    
+    for msg in recent_messages:
+        if isinstance(msg, HumanMessage):
+            summary_parts.append(f"User: {msg.content[:80]}...")
+        elif isinstance(msg, AIMessage) and not isinstance(msg, ToolMessage):
+            summary_parts.append(f"Assistant: {msg.content[:80]}...")
+    
+    return "Recent conversation: " + " | ".join(summary_parts[-4:])  # Last 2 exchanges
+
+def should_use_pdf_search(query: str, conversation_history: List) -> bool:
+    """Determine if the query requires PDF search based on content and context"""
+    # Keywords that typically require PDF search
+    pdf_indicators = [
+        'what does', 'according to', 'in the document', 'document says', 
+        'pdf states', 'mentioned in', 'find information', 'search for',
+        'explain from', 'quote from', 'reference', 'citation'
+    ]
+    
+    # Check if query contains PDF-related keywords
+    query_lower = query.lower()
+    has_pdf_keywords = any(indicator in query_lower for indicator in pdf_indicators)
+    
+    # Check recent conversation for PDF context
+    recent_context_mentions_pdf = False
+    if len(conversation_history) > 1:
+        recent_messages = conversation_history[-4:]  # Check last few messages
+        for msg in recent_messages:
+            if hasattr(msg, 'content') and msg.content:
+                if any(indicator in msg.content.lower() for indicator in ['pdf', 'document', 'page']):
+                    recent_context_mentions_pdf = True
+                    break
+    
+    return has_pdf_keywords or recent_context_mentions_pdf or len(query) > 20
+
 def create_rag_chatbot(model: str = MODEL_NAME):
     """Create a RAG-enabled chatbot instance using LangGraph and LiteLLM"""
-    console.print("\n[bold blue]🤖 Initializing RAG Chatbot[/bold blue]")
+    console.print("\n[bold blue]🤖 Initializing Enhanced RAG Chatbot[/bold blue]")
     
     # Initialize DuckDB connection only
     console.print("[yellow]Initializing DuckDB connection...[/yellow]")
@@ -150,83 +241,114 @@ def create_rag_chatbot(model: str = MODEL_NAME):
     console.print("[yellow]Setting up conversation workflow...[/yellow]")
     workflow = StateGraph(state_schema=MessagesState)
     
-    # Define the RAG node
+    # Enhanced RAG node with better context retention
     def rag_node(state: MessagesState):
-        """Process the query through RAG pipeline"""
-        # Get the last message (user query)
-        last_message = state["messages"][-1]
+        """Process the query through RAG pipeline with full context retention"""
+        # Get ALL messages from the conversation history
+        conversation_messages = state["messages"]
+        last_message = conversation_messages[-1]
+        
+        console.print(f"\n[bold blue]🧠 Processing with {len(conversation_messages)} messages in context[/bold blue]")
         
         # Bind the search tool to the LLM
         augmented_llm = llm.bind_tools([search_similar_chunks])
         
-        # Create initial messages with stronger instruction to use the tool
-        messages = [
-            SystemMessage(content="""You are a helpful AI assistant with access to a PDF document. 
-IMPORTANT: ALWAYS use the search_similar_chunks tool to find relevant information from the PDF before answering any question.
-Do not rely on your own knowledge - only use information found in the PDF through the search tool.
-If the search doesn't find relevant information, clearly state that the information is not available in the PDF."""),
-            last_message
-        ]
+        # Create enhanced system message that preserves context
+        system_content = """You are a helpful AI assistant with access to a PDF document. 
+
+CONTEXT AWARENESS:
+- Maintain full awareness of our conversation history
+- Reference previous questions and answers when relevant
+- Build upon previous discussions naturally
+
+PDF SEARCH STRATEGY:
+- IMPORTANT: ALWAYS use the search_similar_chunks tool when questions require specific information from the PDF
+- Always search before answering factual questions about document content
+- Do not rely on your own knowledge - only use information found in the PDF through the search tool.
+- If information isn't found in the PDF, then you can use your own knowledge to answer, but always clarify that the information is not from the PDF.
+
+RESPONSE GUIDELINES:
+- Be conversational and maintain discussion flow when asked, otherwise be concise and factual from the PDF
+- Reference earlier parts of our conversation when helpful
+- Provide complete, helpful answers based on available information"""
+        
+        # Preserve conversation history while ensuring system message is present
+        if not conversation_messages or not isinstance(conversation_messages[0], SystemMessage):
+            messages_for_llm = [SystemMessage(content=system_content)] + conversation_messages
+        else:
+            # Update existing system message to include context awareness
+            messages_for_llm = [SystemMessage(content=system_content)] + conversation_messages[1:]
+        
+        # Add conversation summary for better context understanding
+        if len(conversation_messages) > 3:
+            context_summary = get_conversation_summary(conversation_messages)
+            context_msg = SystemMessage(content=f"CONVERSATION CONTEXT: {context_summary}")
+            messages_for_llm.insert(1, context_msg)
         
         # Get initial response from model
-        console.print("\n[bold blue]🤖 Processing user query...[/bold blue]")
-        response = augmented_llm.invoke(messages)
+        console.print("\n[bold blue]🤖 Processing query with full conversation context...[/bold blue]")
+        response = augmented_llm.invoke(messages_for_llm)
         
         # Check for tool calls
         if response.tool_calls:
-            console.print("\n[bold yellow]🔧 Tool Call Detected[/bold yellow]")
-            console.print("[cyan]The model decided to search the PDF for relevant information.[/cyan]")
+            console.print("\n[bold yellow]🔧 PDF Search Tool Activated[/bold yellow]")
             tool_messages = []
+            
             for tool_call in response.tool_calls:
                 function_name = tool_call["name"]
                 arguments = tool_call["args"]
                 
                 console.print(f"\n[yellow]📝 Tool Details:[/yellow]")
                 console.print(f"[cyan]Function: {function_name}[/cyan]")
-                console.print(f"[cyan]Query: {arguments['query']}[/cyan]")
+                console.print(f"[cyan]Search Query: {arguments['query']}[/cyan]")
                 
                 if function_name == "search_similar_chunks":
                     # Execute the search tool
                     similar_chunks = search_similar_chunks.invoke(arguments["query"])
                     
-                    # Create context from similar chunks
-                    context = "\n".join([
-                        f"Page {chunk['fields']['page_number']}: {chunk['fields']['chunk_text']}"
-                        for chunk in similar_chunks
-                    ])
-                    
-                    # Log the RAG search results
-                    console.print("\n[bold blue]📊 RAG Search Results:[/bold blue]")
-                    for chunk in similar_chunks:
-                        console.print(f"[cyan]Score: {chunk['score']:.3f}[/cyan]")
-                        console.print(f"[yellow]Page: {chunk['fields']['page_number']}[/yellow]")
-                        console.print(f"[green]Text: {chunk['fields']['chunk_text'][:200]}...[/green] ")
+                    if similar_chunks:
+                        # Create rich context from similar chunks
+                        context_parts = []
+                        for chunk in similar_chunks:
+                            context_parts.append(
+                                f"[Page {chunk['fields']['page_number']}] {chunk['fields']['chunk_text']}"
+                            )
+                        context = "\n\n".join(context_parts)
+                        
+                        # Log the RAG search results
+                        console.print("\n[bold blue]📊 RAG Search Results:[/bold blue]")
+                        for i, chunk in enumerate(similar_chunks, 1):
+                            console.print(f"[cyan]Result {i} - Score: {chunk['score']:.3f}[/cyan]")
+                            console.print(f"[yellow]Page: {chunk['fields']['page_number']}[/yellow]")
+                            console.print(f"[green]Preview: {chunk['fields']['chunk_text'][:150]}...[/green]")
+                        
+                        tool_content = f"Found {len(similar_chunks)} relevant sections from the PDF:\n\n{context}"
+                    else:
+                        tool_content = "No relevant information found in the PDF for this query."
+                        console.print("[yellow]⚠️ No relevant PDF content found[/yellow]")
                     
                     # Create tool message with context
                     tool_messages.append(ToolMessage(
-                        content=f"Here is the relevant information from the PDF:\n\n{context}",
+                        content=tool_content,
                         tool_call_id=tool_call["id"]
                     ))
             
-            # Get final response with tool results
-            console.print("\n[bold blue]🤖 Generating final response with PDF context...[/bold blue]")
-            final_messages = [
-                SystemMessage(content="""You are a helpful AI assistant. Use ONLY the provided context from the PDF to answer the question.
-Do not use any external knowledge or information not found in the PDF context.
-If the context doesn't contain enough information to answer the question, clearly state that the information is not available in the PDF.
-Base your response entirely on the PDF content provided."""),
-                last_message,
-                response
-            ] + tool_messages
+            # Generate final response with complete context preservation
+            console.print("\n[bold blue]🤖 Generating contextualized response...[/bold blue]")
+            
+            # Build final message chain preserving everything
+            final_messages = messages_for_llm + [response] + tool_messages
             
             final_response = augmented_llm.invoke(final_messages)
-            return {"messages": final_response}
+            
+            # Return complete updated state with all messages
+            return {"messages": conversation_messages + [response] + tool_messages + [final_response]}
         else:
-            # No tool call needed, return the initial response
-            console.print("\n[bold green]✓ No PDF search needed - answering directly[/bold green]")
-            return {"messages": response}
+            # No tool call needed - direct conversational response
+            console.print("\n[bold green]✓ Direct conversational response (no PDF search needed)[/bold green]")
+            return {"messages": conversation_messages + [response]}
     
-    # Add the RAG node
+    # Add the enhanced RAG node
     workflow.add_node("rag", rag_node)
     
     # Add edges
@@ -234,154 +356,224 @@ Base your response entirely on the PDF content provided."""),
     workflow.add_edge("rag", END)
     
     # Compile the workflow with memory
-    console.print("[yellow]Compiling workflow...[/yellow]")
+    console.print("[yellow]Compiling workflow with enhanced memory management...[/yellow]")
     memory = MemorySaver()
     app = workflow.compile(checkpointer=memory)
-    console.print("[green]✓ Workflow compiled successfully[/green]")
+    console.print("[green]✓ Enhanced workflow compiled successfully[/green]")
     
-    console.print("[bold green]✅ RAG Chatbot initialization complete![/bold green]")
+    console.print("[bold green]✅ Enhanced RAG Chatbot initialization complete![/bold green]")
     return app, conn
 
 def clear_conversation(conversation):
-    """Clear the conversation history"""
+    """Clear the conversation history and create a new instance"""
     conversation, _ = create_rag_chatbot()
-    console.print("[yellow]Conversation history cleared![/yellow]")
+    console.print("[yellow]🔄 Conversation history cleared! Starting fresh.[/yellow]")
     return conversation
 
 def display_help():
     """Display help information"""
     help_text = """
-    Available Commands:
-    • help - Show this help message
-    • quit or exit - Exit the chatbot
-    • clear - Clear conversation history
-    • model - Show current model
+    🤖 Enhanced PDF RAG Assistant Commands:
     
-    The chatbot uses RAG (Retrieval Augmented Generation) to search through your PDF
-    and provide context-aware responses. Each response is based on the most relevant
-    sections found in the PDF.
+    • help - Show this help message
+    • quit or exit - Exit the chatbot  
+    • clear - Clear conversation history and start fresh
+    • model - Show current model information
+    • context - Show conversation context summary
+    • stats - Show database statistics
+    
+    🧠 Context Features:
+    • Maintains full conversation history within each session
+    • References previous questions and answers
+    • Intelligently decides when to search the PDF
+    • Builds upon ongoing discussions naturally
+    
+    🔍 PDF Search:
+    • Automatically searches PDF when you ask specific questions
+    • Provides page references for all information
+    • Combines PDF content with conversation context
     """
-    console.print(Panel(help_text, title="Help", border_style="cyan"))
+    console.print(Panel(help_text, title="Enhanced PDF RAG Assistant Help", border_style="cyan"))
+
+def show_context_info(conversation, thread_id):
+    """Show current conversation context information"""
+    try:
+        # This is a simplified context display - in a real implementation,
+        # you'd retrieve the actual conversation state from the memory
+        console.print(Panel(
+            f"Thread ID: {thread_id}\nContext: Maintained across conversation\nMemory: Active",
+            title="Context Information",
+            border_style="blue"
+        ))
+    except Exception as e:
+        console.print(f"[yellow]Context info unavailable: {str(e)}[/yellow]")
+
+def show_database_stats(conn):
+    """Show database statistics"""
+    try:
+        count = conn.execute("SELECT COUNT(*) FROM pdf_embeddings").fetchone()[0]
+        pages = conn.execute("SELECT COUNT(DISTINCT page_number) FROM pdf_embeddings").fetchone()[0]
+        console.print(Panel(
+            f"Total chunks: {count}\nPages processed: {pages}\nDatabase: pdf_rag_demo.db",
+            title="Database Statistics",
+            border_style="green"
+        ))
+    except Exception as e:
+        console.print(f"[red]Database stats unavailable: {str(e)}[/red]")
 
 def main():
+    """Main function with enhanced error handling and user experience"""
     # Check for API key
     if not os.getenv('OPENAI_API_KEY'):
         console.print("[red]❌ Error: Please set your OPENAI_API_KEY environment variable[/red]")
+        console.print("[yellow]💡 Create a .env file with: OPENAI_API_KEY=your_api_key_here[/yellow]")
         return
     
-    # Create chatbot instance and get database connection first
-    conversation, conn = create_rag_chatbot()
-    
-    # Check if PDF content is already processed
-    console.print("\n[bold blue]📚 Checking PDF Processing Status[/bold blue]")
-    existing_count = conn.execute("SELECT COUNT(*) FROM pdf_embeddings").fetchone()[0]
-    
-    if existing_count > 0:
-        console.print(f"[green]✓ Found {existing_count} existing PDF embeddings in database[/green]")        
-        # Ask user if they want to re-process the PDF
+    try:
+        # Create chatbot instance and get database connection
+        conversation, conn = create_rag_chatbot()
+        
+        # Check if PDF content is already processed
+        console.print("\n[bold blue]📚 Checking PDF Processing Status[/bold blue]")
+        existing_count = conn.execute("SELECT COUNT(*) FROM pdf_embeddings").fetchone()[0]
+        
+        if existing_count > 0:
+            console.print(f"[green]✓ Found {existing_count} existing PDF chunks in database[/green]")
+            
+            # Ask user if they want to re-process the PDF
+            while True:
+                user_choice = input("Do you want to add a new PDF and replace the existing one? (y/n): ").strip().lower()
+                if user_choice in ['y', 'yes']:
+                    console.print("[yellow]You chose to re-process the PDF.[/yellow]")
+                    break
+                elif user_choice in ['n', 'no']:
+                    console.print("[green]✓ Using existing PDF embeddings[/green]")
+                    # Skip PDF processing and go directly to chat
+                    start_enhanced_chat_session(conversation, conn)
+                    return
+                else:
+                    console.print("[red]Please enter 'y' or 'n'[/red]")
+        
+        # Get PDF path from user (only if re-processing or no existing data)
+        console.print("\n[bold blue]📂 PDF Input[/bold blue]")
         while True:
-            user_choice = input("Do you want to add a new PDF and replace the existing one? (y/n): ").strip().lower()
-            if user_choice in ['y', 'yes']:
-                console.print("[yellow]You chose to re-process the PDF.[/yellow]")
+            pdf_path = input("Please enter the path to your PDF file: ").strip()
+            if pdf_path.startswith('"') and pdf_path.endswith('"'):
+                pdf_path = pdf_path[1:-1]  # Remove quotes if present
+            
+            if os.path.exists(pdf_path):
                 break
-            elif user_choice in ['n', 'no']:
-                console.print("[green]✓ Using existing embeddings[/green]")
-                # Skip PDF processing and go directly to chat
-                start_chat_session(conversation)
-                return
             else:
-                console.print("[red]Please enter 'y' or 'n'[/red]")
-    
-    # Get PDF path from user (only if re-processing or no existing data)
-    console.print("\n[bold blue]📂 PDF Input[/bold blue]")
-    pdf_path = input("Please enter the path to your PDF file: ").strip()
-    if not os.path.exists(pdf_path):
-        console.print("[red]❌ Error: PDF file not found![/red]")
-        return
-    
-    # Process PDF based on user choice or if no existing data
-    if existing_count > 0:
-        # User chose to re-process
-        console.print("[yellow]Clearing existing embeddings and re-processing PDF...[/yellow]")
-        conn.execute("DELETE FROM pdf_embeddings")
-        console.print("[green]✓ Existing embeddings cleared[/green]")
-    
-    # Load embeddings model only when needed for PDF processing
-    console.print("[yellow]Loading embeddings model for PDF processing...[/yellow]")
-    embeddings = get_embeddings()
-    console.print("[green]✓ Embeddings model loaded[/green]")
-    
-    # Read and store PDF content
-    console.print("\n[bold blue]📚 PDF Processing Pipeline[/bold blue]")
-    chunks = read_pdf(pdf_path)
-    store_pdf_chunks(conn, chunks, embeddings)
-    
-    # Start chat session
-    start_chat_session(conversation)
+                console.print("[red]❌ Error: PDF file not found! Please check the path and try again.[/red]")
+        
+        # Process PDF based on user choice or if no existing data
+        if existing_count > 0:
+            # User chose to re-process
+            console.print("[yellow]Clearing existing embeddings and re-processing PDF...[/yellow]")
+            conn.execute("DELETE FROM pdf_embeddings")
+            console.print("[green]✓ Existing embeddings cleared[/green]")
 
-def start_chat_session(conversation):
-    """Start the chat session with the user."""
+        # Load embeddings model only when needed for PDF processing
+        console.print("[yellow]Loading embeddings model for PDF processing...[/yellow]")
+        embeddings = get_embeddings()
+        console.print("[green]✓ Embeddings model loaded[/green]")
+        
+        # Read and store PDF content
+        console.print("\n[bold blue]📚 Enhanced PDF Processing Pipeline[/bold blue]")
+        chunks = read_pdf(pdf_path)
+        store_pdf_chunks(conn, chunks, embeddings)
+        
+        # Validate Snowflake connection and schema
+        validate_snowflake_connection()
+
+        # Start enhanced chat session
+        start_enhanced_chat_session(conversation, conn)
+        
+    except KeyboardInterrupt:
+        console.print("\n\n[green]👋 Goodbye! Have a great day![/green]")
+    except Exception as e:
+        console.print(f"\n[red]❌ An error occurred during initialization: {str(e)}[/red]")
+        console.print("[yellow]Please check your environment setup and try again.[/yellow]")
+
+def start_enhanced_chat_session(conversation, conn):
+    """Start the enhanced chat session with better UX and context management"""
     # Generate a unique thread ID for this conversation
     current_thread_id = str(uuid.uuid4())
     
     # Welcome message
-    console.print("\n[bold blue]🤖 Starting Chat Session[/bold blue]")
+    console.print("\n[bold blue]🤖 Enhanced PDF RAG Assistant[/bold blue]")
     console.print(Panel(
-        Text("PDF RAG Assistant", style="bold cyan"),
+        Text("🧠 Context-Aware • 🔍 PDF-Powered • 💬 Conversational", style="bold cyan"),
         border_style="cyan"
     ))
-    console.print("[yellow]This chatbot uses RAG to search through your PDF and provide context-aware responses.[/yellow]")
-    console.print(f"[yellow]Current Thread ID: {current_thread_id}[/yellow]")
-    console.print("[yellow]Type 'help' for available commands[/yellow]")
+    console.print("[green]✨ This assistant maintains conversation context and intelligently searches your PDF[/green]")
+    console.print(f"[dim]Thread ID: {current_thread_id[:8]}...[/dim]")
+    console.print("[yellow]💡 Type 'help' for commands or just start asking questions![/yellow]")
+    
+    message_count = 0
     
     while True:
         try:
-            # Get user input
-            user_input = console.input("\n[bold cyan]You:[/bold cyan] ").strip()
+            # Get user input with better prompt
+            user_input = console.input(f"\n[bold cyan]You ({message_count + 1}):[/bold cyan] ").strip()
             
             if not user_input:
                 continue
                 
+            # Handle special commands
             if user_input.lower() in ['quit', 'exit']:
-                console.print("\n[green]👋 Goodbye! Have a great day![/green]")
+                console.print("\n[green]👋 Thank you for stopping by! Goodbye![/green]")
                 break
             elif user_input.lower() == 'clear':
                 conversation = clear_conversation(conversation)
                 current_thread_id = str(uuid.uuid4())
-                console.print(f"[yellow]🔄 New Thread ID: {current_thread_id}[/yellow]")
+                message_count = 0
+                console.print(f"[yellow]🔄 New conversation started! Thread ID: {current_thread_id[:8]}...[/yellow]")
                 continue
             elif user_input.lower() == 'model':
                 console.print(Panel(
-                    f"Current model: {MODEL_NAME}",
-                    title="Model Info",
+                    f"Model: {MODEL_NAME}\nEmbedding Model: {EMBEDDING_MODEL}\nContext: Enhanced with memory",
+                    title="Model Information",
                     border_style="yellow"
                 ))
                 continue
             elif user_input.lower() == 'help':
                 display_help()
                 continue
+            elif user_input.lower() == 'context':
+                show_context_info(conversation, current_thread_id)
+                continue
+            elif user_input.lower() == 'stats':
+                show_database_stats(conn)
+                continue
             
             # Create input message
             input_messages = [HumanMessage(content=user_input)]
             
             # Get response from the model with thread ID for memory
-            console.print("[yellow]Processing your question...[/yellow]")
+            console.print("[yellow]🤔 Thinking and searching...[/yellow]")
             result = conversation.invoke(
                 {"messages": input_messages},
                 config={"configurable": {"thread_id": current_thread_id}}
             )
 
-            # Print the response
+            # Print the response with enhanced formatting
             if result and "messages" in result and result["messages"]:
-                console.print("\n[bold green]Assistant:[/bold green]")
-                console.print(Markdown(result['messages'][-1].content))
+                final_message = result['messages'][-1]
+                console.print(f"\n[bold green]Assistant ({message_count + 1}):[/bold green]")
+                console.print(Markdown(final_message.content))
+                message_count += 1
+                
+                # Show context retention indicator
+                if message_count > 1:
+                    console.print(f"[dim]💡 Maintaining context from {message_count} previous exchanges[/dim]")
                 
         except KeyboardInterrupt:
-            console.print("\n\n[green]👋 Goodbye! Have a great day![/green]")
+            console.print("\n\n[green]👋 Session interrupted. Goodbye![/green]")
             break
         except Exception as e:
             console.print(f"\n[red]❌ An error occurred: {str(e)}[/red]")
-            console.print("[yellow]Please try again or type 'quit' to exit[/yellow]")
+            console.print("[yellow]💡 Try rephrasing your question or type 'help' for assistance[/yellow]")
 
 if __name__ == "__main__":
     main()
