@@ -14,24 +14,26 @@ provider "snowflake" {
   user              = "NGUYENLE98"
 }
 
-resource "snowflake_table" "Currency" {
-  database                    = "CAPSTONE_FINAL"
-  schema                      = "RAW"
-  name                        = "DIM_CURRENCY"
-  comment                     = "Currency explained"
+variable "env" {
+  type        = string
+  description = "Environment: Prod, UAT, DEV"
+}
 
-  column {
-    name     = "Currency"
-    type     = "string"
-    nullable = false
 
-    
-  }
+resource "snowflake_database" "capstone" {
+  name = "CAPSTONE_DB_${upper(var.env)}"
+}
 
-  column {
-    name     = "CODE"
-    type     = "string"
-    nullable = false
-  }
- 
+resource "snowflake_schema" "schema" {
+  name     = "RAW"
+  database = resource.snowflake_database.capstone.name
+}
+
+resource "snowflake_view" "live_rates" {
+  database  = resource.snowflake_database.capstone.name
+  schema    = resource.snowflake_schema.schema.name
+  name      = "LIVE_RATES"
+  statement = <<-SQL
+    select * from CAPSTONE_FINAL.RAW.LIVE_RATES;
+SQL
 }
